@@ -12,7 +12,7 @@ export interface Config {
     publicKeyPem: string;
     algorithm: string;
     issuer: string;
-    audience: string;
+    audience: string; 
   };
   /** Token compartido solo entre orders y events para /internal/*. */
   internalTokenOrders: string;
