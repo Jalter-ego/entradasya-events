@@ -81,6 +81,8 @@ jobs:
             pnpm-workspace.yaml
             .env.example
             README.md
+          # upload-artifact ignora archivos que empiezan con punto; sin esto se pierde .env.example.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
 
