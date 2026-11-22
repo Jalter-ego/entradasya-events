@@ -3,7 +3,7 @@
 Servicio de eventos, sectores y cupos de EntradasYa. Dueño: **P2**.
 
 - Puerto por defecto: `3002` (escucha solo en `127.0.0.1`; el navegador entra por Nginx).
-- Contrato: [`contracts/events.openapi.yaml`](../../contracts/events.openapi.yaml).
+- Contrato: [`contracts/events.openapi.yaml`](https://github.com/Jalter-ego/entradasya-platform/blob/master/contracts/events.openapi.yaml) en el repo de la plataforma.
 - Stack: Node.js ≥ 20 + TypeScript, Express 5, PostgreSQL (`pg`), migraciones con `node-pg-migrate`.
 
 ## Qué hace
@@ -27,7 +27,7 @@ Las ventas e ingresos del organizador **no** están aquí: la web los pide al re
 ## Arranque local
 
 ```bash
-cd services/events
+# desde la raíz de este repo
 pnpm install
 cp .env.example .env        # completar DATABASE_URL, clave pública JWT e INTERNAL_TOKEN_ORDERS
 pnpm run migrate             # crea/actualiza las tablas
@@ -40,7 +40,7 @@ Comprobar: `curl http://127.0.0.1:3002/health` → `{"status":"ok","service":"ev
 
 ### JWT de auth (P1)
 
-Configura `JWT_PUBLIC_KEY_FILE` con el PEM público del [servicio auth](../auth/README.md) y usa su mismo emisor y audiencia. La cuenta sembrada `organizador@demo.bo` usa el UUID de `SEED_ORGANIZER_ID` por defecto y puede ver sus eventos desde la web.
+Configura `JWT_PUBLIC_KEY_FILE` con el PEM público del [servicio auth](https://github.com/Jalter-ego/entradasya-platform/tree/master/services/auth) y usa su mismo emisor y audiencia. La cuenta sembrada `organizador@demo.bo` usa el UUID de `SEED_ORGANIZER_ID` por defecto y puede ver sus eventos desde la web.
 
 ### Base de datos local
 
@@ -87,6 +87,22 @@ TEST_DATABASE_URL=postgres://usuario:clave@localhost:5432/events_db pnpm test
 ```
 
 Cubren: acceso por rol, ciclo borrador → publicado → cancelado, validaciones, capacidad mínima, reserva idempotente, **último cupo con 10 compras simultáneas**, 30 compras simultáneas sin superar la capacidad, la misma orden enviada en paralelo, y liberación repetida o simultánea.
+
+## Pipeline (GitHub Actions)
+
+El workflow está en [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+- **Cuándo corre:** en cada push a `develop` (incluido el merge de un PR) y a mano desde **Actions → CI events → Run workflow**. Si llegan dos pushes seguidos, cancela la ejecución anterior.
+- **Entorno:** Ubuntu, Node 24, pnpm según `packageManager` en `package.json`, y un Postgres 16 de servicio para las pruebas.
+- **Pasos:** checkout, instalación con lockfile congelado, typecheck, pruebas (con reporte JUnit) y build.
+- **Seguridad:** el token de GitHub solo tiene `contents: read` y no queda guardado en el checkout. No usa secrets.
+
+| Artifact | Contenido | Cuándo |
+|---|---|---|
+| `events-<sha>-<intento>` | `dist/`, migraciones, scripts, `package.json`, lockfile, `pnpm-workspace.yaml`, `.env.example` y este README. | Si pasan todos los pasos. |
+| `events-tests-<sha>-<intento>` | `reports/junit.xml` con el resultado de las pruebas. | Siempre que exista, incluso si fallan pruebas. |
+
+Se conservan 30 días. No incluyen `node_modules`, `.env`, claves ni portadas. Para generar el reporte en local: `pnpm test --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml`.
 
 ## Migraciones
 

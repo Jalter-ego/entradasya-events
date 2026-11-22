@@ -5,6 +5,9 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -31,22 +34,27 @@ jobs:
           --health-retries 10
 
     env:
+      CI: 'true'
+      LOG_LEVEL: silent
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/events_test
 
     steps:
       - name: Descargar código
-        uses: actions/checkout@v4
-
-      - name: Instalar pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
         with:
-          version: 12.11.2
+          persist-credentials: false
 
       - name: Instalar Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
+
+      # La versión de pnpm sale de "packageManager" en package.json.
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
@@ -54,16 +62,16 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Tests
-        run: pnpm test
+      - name: Tests (con reporte JUnit)
+        run: pnpm test --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml
 
       - name: Build
         run: pnpm build
 
-      - name: Subir artifact
-        uses: actions/upload-artifact@v4
+      - name: Subir artifact del servicio
+        uses: actions/upload-artifact@v7
         with:
-          name: events-${{ github.sha }}
+          name: events-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             dist/
             migrations/
@@ -74,4 +82,13 @@ jobs:
             .env.example
             README.md
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Subir reporte de pruebas
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: events-tests-${{ github.sha }}-${{ github.run_attempt }}
+          path: reports/junit.xml
+          if-no-files-found: warn
           retention-days: 30

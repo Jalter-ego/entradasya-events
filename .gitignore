@@ -7,3 +7,5 @@ keys/
 *.pem
 *.log
 coverage/
+reports/
+data/
